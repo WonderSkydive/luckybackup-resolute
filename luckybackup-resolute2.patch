@@ -1,0 +1,594 @@
+diff --git a/src/about.cpp b/src/about.cpp
+index d0578b6..5466aae 100644
+--- a/src/about.cpp
++++ b/src/about.cpp
+@@ -54,7 +54,7 @@ void aboutDialog::okay()
+ // FUNCTIONS-------------------------------------------------------------------------------------
+ void aboutDialog::setTop()
+ {
+-    Text = appName+" "+ appVersionString;
++    Text = appName + " " + appVersionString + " · " + communityEdition;
+     uiA.label_Top -> setText(Text);
+ }
+ void aboutDialog::setAbout()
+@@ -64,7 +64,8 @@ void aboutDialog::setAbout()
+ 
+     Text = 	"<p align=\"center\"><b>"+appName + " " + appVersionString +"</b> ("+
+         tr("using Qt")+")" + "<br>" +
+-        tr("Backup & Sync Application")+"<br><br>"
++        tr("Backup & Sync Application") + "<br>" +
++        tr("Community edition maintained by WonderSkydive") + "<br><br>"
+ 
+         "(C) 2008-2018,	"+
+         tr("Loukas Avgeriou") +"<br><br>"
+@@ -348,6 +349,12 @@ void aboutDialog::setSupport()
+     "<br><br><a href=\"http://luckybackup.sourceforge.net/donate.html\" target=\"_blank\"><b>" +
+     tr("donation link") + "</b></a></p>";
+ 
++    Text += "<p><b>" + tr("Community edition support") + "</b><br>" +
++        tr("For installation help, release notes, or questions about this edition, see the project on GitHub.") +
++        "<br><a href=\"https://github.com/WonderSkydive/luckybackup-resolute\">" +
++        tr("Community edition on GitHub") + "</a><br><a href=\"https://github.com/WonderSkydive/luckybackup-resolute/issues\">" +
++        tr("Report a problem with this edition") + "</a></p>";
++
+     uiA.textBrowser_Support -> setText(Text);
+ }
+ // end of about.cpp ---------------------------------------------------------------------------
+diff --git a/src/global.cpp b/src/global.cpp
+index eaf70b4..1cb2b40 100644
+--- a/src/global.cpp
++++ b/src/global.cpp
+@@ -49,6 +49,7 @@ QString currentUser;
+ QString const appName = "luckyBackup";
+ double const appVersion = 0.50;
+ QString appVersionString = "0.5.0";
++QString const communityEdition = "resolute2";
+ double const validProfileVersion = 0.21;
+ double const validScheduleVersion = 0.34;
+ double const validSettingsVersion = 0.3;
+diff --git a/src/global.h b/src/global.h
+index e33b038..f881a6a 100644
+--- a/src/global.h
++++ b/src/global.h
+@@ -47,6 +47,7 @@ namespace Global {
+   extern QString currentUser;                 // will hold the current username (definition at luckybackupwindow.cpp)
+   extern QString const appName;               // application name
+   extern double const appVersion;             // application version
++  extern QString const communityEdition;      // community release label
+   extern QString appVersionString;            // application version
+   extern double const validProfileVersion;    // profile version before this a profile won't be loaded
+   extern double const validScheduleVersion;   // schedule version before this a schedule won't be loaded
+diff --git a/src/luckybackupwindow.cpp b/src/luckybackupwindow.cpp
+index 6021d15..5fcdd53 100644
+--- a/src/luckybackupwindow.cpp
++++ b/src/luckybackupwindow.cpp
+@@ -80,16 +80,17 @@ luckyBackupWindow::luckyBackupWindow(QMainWindow *parent) : QMainWindow(parent)
+         emptydir.mkpath(snapEmptyDir);
+     }
+     
++    const QString windowTitle = appName + " " + appVersionString + " · " + communityEdition;
+     currentUser = myHome;
+     if (currentUser == "/root")
+     {
+         currentUser = tr("super user","super user is the root user");
+-        this -> setWindowTitle(appName + " - " + tr("super user mode"));
++        this -> setWindowTitle(windowTitle + " - " + tr("super user mode"));
+     }
+     else
+     {
+         currentUser.remove("/home/");
+-        this -> setWindowTitle(appName);
++        this -> setWindowTitle(windowTitle);
+     }
+ 
+     // load the user settings file. If it does not exist create it
+diff --git a/src/modifyDialog.cpp b/src/modifyDialog.cpp
+index 1080fae..289a7c3 100644
+--- a/src/modifyDialog.cpp
++++ b/src/modifyDialog.cpp
+@@ -35,11 +35,54 @@ Display a dialog. Adds a new or modifies an existing operation
+ #include <QCompleter>
+ #include <QDirModel>
+ #include <QFileDialog>
++#include <QToolButton>
++#include <QToolTip>
+ 
+ #include "global.h"
+ 
+ #include "textDialog.h"
+ 
++namespace
++{
++QHBoxLayout *optionWithHelp(QCheckBox *option)
++{
++    QToolButton *help = new QToolButton(option->parentWidget());
++    help->setText(QStringLiteral("?"));
++    help->setToolTip(option->toolTip());
++    help->setAccessibleName(option->text());
++    help->setAccessibleDescription(option->toolTip());
++    QObject::connect(help, &QToolButton::clicked, help, [help]() {
++        QToolTip::showText(help->mapToGlobal(QPoint(0, help->height())),
++                           help->toolTip(), help);
++    });
++
++    QHBoxLayout *row = new QHBoxLayout;
++    row->addWidget(option);
++    row->addWidget(help);
++    row->addStretch();
++    return row;
++}
++
++void addTemplateHelp(QGridLayout *grid, QVBoxLayout *deleteLayout)
++{
++    for (int index = grid->count() - 1; index >= 0; --index)
++    {
++        QCheckBox *option = qobject_cast<QCheckBox *>(grid->itemAt(index)->widget());
++        if (!option || option->isHidden() || option->toolTip().isEmpty())
++            continue;
++
++        int row, column, rowSpan, columnSpan;
++        grid->getItemPosition(index, &row, &column, &rowSpan, &columnSpan);
++        grid->removeWidget(option);
++        grid->addLayout(optionWithHelp(option), row, column, rowSpan, columnSpan);
++    }
++
++    QCheckBox *deleteOption = qobject_cast<QCheckBox *>(deleteLayout->itemAt(0)->widget());
++    deleteLayout->removeWidget(deleteOption);
++    deleteLayout->insertLayout(0, optionWithHelp(deleteOption));
++}
++}
++
+ // class modifyDialog Constructor=================================================================================================
+ // modify or create an operation
+ modifyDialog::modifyDialog (int ItemNo, QDialog *parent) : QDialog (parent)
+@@ -81,6 +124,8 @@ modifyDialog::modifyDialog (int ItemNo, QDialog *parent) : QDialog (parent)
+     
+     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 
++    addTemplateHelp(uiM.gridLayout_10, uiM.deleteAfterLayout);
++
+     //connections ----------------------------------------------------------------------------------------------------
+     connect(uiM.pushButton_advanced, SIGNAL( toggled(bool) ), this, SLOT(advancedPressed(bool) ) );    //advanced pushButton
+     connect(uiM.pushButton_cancel, SIGNAL( pressed() ), this, SLOT(cancelPressed() ) );        //cancel pushButton
+diff --git a/translations/luckybackup_es.ts b/translations/luckybackup_es.ts
+index c06b46a..9b3db34 100644
+--- a/translations/luckybackup_es.ts
++++ b/translations/luckybackup_es.ts
+@@ -531,6 +531,11 @@
+ </context>
+ <context>
+     <name>aboutDialog</name>
++    <message><source>Community edition maintained by WonderSkydive</source><translation>Edición comunitaria mantenida por WonderSkydive</translation></message>
++    <message><source>Community edition support</source><translation>Soporte de la edición comunitaria</translation></message>
++    <message><source>For installation help, release notes, or questions about this edition, see the project on GitHub.</source><translation>Consulta el proyecto en GitHub para ver las instrucciones de instalación, las notas de la versión o resolver dudas sobre esta edición.</translation></message>
++    <message><source>Community edition on GitHub</source><translation>Edición comunitaria en GitHub</translation></message>
++    <message><source>Report a problem with this edition</source><translation>Informar de un problema con esta edición</translation></message>
+     <message>
+         <source>using Qt4</source>
+         <translation type="vanished">usando Qt4</translation>
+@@ -1234,7 +1239,7 @@ p, li { white-space: pre-wrap; }
+     <message>
+         <location line="-12"/>
+         <source>&amp;Support</source>
+-        <translation>&amp;Support</translation>
++        <translation>&amp;Soporte</translation>
+     </message>
+     <message>
+         <location line="-72"/>
+@@ -3669,12 +3674,12 @@ p, li { white-space: pre-wrap; }
+ rather than using user and group names
+ and mapping them at both ends.
+ (--numeric-ids)</source>
+-        <translation type="unfinished"></translation>
++        <translation>Usa los números de usuario y grupo en vez de sus nombres al conservar la propiedad (--numeric-ids).</translation>
+     </message>
+     <message>
+         <location line="+6"/>
+         <source>Use numeric group and user IDs</source>
+-        <translation type="unfinished"></translation>
++        <translation>Usar identificadores numéricos de usuario y grupo</translation>
+     </message>
+     <message>
+         <location line="+22"/>
+@@ -3685,12 +3690,12 @@ preserving users via the --owner option
+ preserving all groups (not just the current user’s groups) via the --groups option
+ and copying devices via the --devices option.
+ (--super)</source>
+-        <translation type="unfinished"></translation>
++        <translation>Pide al receptor que intente operaciones que pueden requerir privilegios, como asignar propietarios y grupos o crear archivos de dispositivo (--super).</translation>
+     </message>
+     <message>
+         <location line="+9"/>
+         <source>Attempt super-user activities</source>
+-        <translation type="unfinished"></translation>
++        <translation>Intentar operaciones de administrador</translation>
+     </message>
+     <message>
+         <location line="+26"/>
+@@ -3712,8 +3717,7 @@ and copying devices via the --devices option.
+         <location line="+359"/>
+         <source>Check this to clone source to destination
+ Leave unchecked to create an extra directory inside destination</source>
+-        <translation>Comprobar el clonar el origen en el destino
+-Dejar sin verificar al crear un directorio extra en el destino</translation>
++        <translation>Copia directamente el contenido del origen. Desmarca la opción para crear una carpeta adicional en el destino.</translation>
+     </message>
+     <message>
+         <location line="+4"/>
+@@ -3764,7 +3768,7 @@ Dejar sin verificar al crear un directorio extra en el destino</translation>
+     <message>
+         <location line="-1585"/>
+         <source>Exclude all temp folders (**/*tmp*/)</source>
+-        <translation>Excluir todas las carpetas temporales (**/*tmp*/)</translation>
++        <translation>Excluye las carpetas temporales (**/*tmp*/).</translation>
+     </message>
+     <message>
+         <location line="+6"/>
+@@ -3774,7 +3778,7 @@ Dejar sin verificar al crear un directorio extra en el destino</translation>
+     <message>
+         <location line="+31"/>
+         <source>Exclude system mount folders /mnt &amp; /media (/mnt/*/**, /media/*/**)</source>
+-        <translation>Excluir carpetas con los puntos de montaje /mnt y /media (/mnt/*/**, /media/*/**)</translation>
++        <translation>Excluye el contenido de los puntos de montaje del sistema /mnt y /media (/mnt/*/**, /media/*/**).</translation>
+     </message>
+     <message>
+         <location line="+6"/>
+@@ -3784,7 +3788,7 @@ Dejar sin verificar al crear un directorio extra en el destino</translation>
+     <message>
+         <location line="+37"/>
+         <source>Exclude all backup files &amp; folders (**~)</source>
+-        <translation>Excluir todos los archivos y carpetas de copias de seguridad (**~)</translation>
++        <translation>Excluye los archivos y carpetas de respaldo cuyo nombre termina en ~ (**~).</translation>
+     </message>
+     <message>
+         <location line="+6"/>
+@@ -3799,7 +3803,7 @@ Dejar sin verificar al crear un directorio extra en el destino</translation>
+     <message>
+         <location line="+31"/>
+         <source>Exclude all cache folders (**/*cache*/ &amp; **/*Cache*/)</source>
+-        <translation>Excluir todas las carpetas de cache (**/*cache*/ &amp; **/*Cache*/)</translation>
++        <translation>Excluye las carpetas cuyo nombre contiene cache o Cache.</translation>
+     </message>
+     <message>
+         <location line="+6"/>
+@@ -3809,7 +3813,7 @@ Dejar sin verificar al crear un directorio extra en el destino</translation>
+     <message>
+         <location line="+68"/>
+         <source>Exclude all user&apos;s trash folders (**/*Trash*/, **/*trash*/)</source>
+-        <translation>Excluir las carpetas de papelera de todos los usuarios (**/*Trash*/, **/*trash*/)</translation>
++        <translation>Excluye las carpetas de papelera que coincidan con **/*Trash*/ o **/*trash*/.</translation>
+     </message>
+     <message>
+         <location line="+6"/>
+@@ -3819,7 +3823,7 @@ Dejar sin verificar al crear un directorio extra en el destino</translation>
+     <message>
+         <location line="-43"/>
+         <source>Exclude all &quot;lost+found&quot; folders (**/lost+found*/)</source>
+-        <translation>Excluir todas las carpetas &quot;lost+found&quot; (**/lost+found*/)</translation>
++        <translation>Excluye las carpetas lost+found.</translation>
+     </message>
+     <message>
+         <location line="+6"/>
+@@ -3898,12 +3902,12 @@ parte_de_la_ruta nombre_directorio / - sólo corresponde con el directorio, ni a
+     <message>
+         <location line="+173"/>
+         <source>Exclude system folders /var, /proc, /dev &amp; /sys (/var/run/**, /run/**, /proc/**, /dev/**, /sys/**)</source>
+-        <translation type="unfinished"></translation>
++        <translation>Excluye las rutas del sistema /var/run, /run, /proc, /dev y /sys.</translation>
+     </message>
+     <message>
+         <location line="+148"/>
+         <source>Exclude all user&apos;s .gvfs folders (**/.gvfs/)</source>
+-        <translation type="unfinished"></translation>
++        <translation>Excluye las carpetas .gvfs.</translation>
+     </message>
+     <message>
+         <location line="+77"/>
+@@ -4092,7 +4096,7 @@ parte_de_la_ruta nombre_directorio / - sólo corresponde con el directorio, ni a
+     <message>
+         <location line="+22"/>
+         <source>Check this to connect to an rsync Remote module</source>
+-        <translation>Seleccionar para conectarse a un módulo remoto de rsync</translation>
++        <translation>Conecta con un módulo remoto de rsync.</translation>
+     </message>
+     <message>
+         <location line="+3"/>
+@@ -4102,7 +4106,7 @@ parte_de_la_ruta nombre_directorio / - sólo corresponde con el directorio, ni a
+     <message>
+         <location line="+74"/>
+         <source>Use ssh as transport shell</source>
+-        <translation>Usar ssh como shell de transporte</translation>
++        <translation>Usa SSH para la conexión remota.</translation>
+     </message>
+     <message>
+         <location line="+3"/>
+@@ -4150,19 +4154,24 @@ If you have no idea what these mean, leave them untouched !!</source>
+         <translation>Añadir o eliminar opciones de rsync.
+ Si no sabe lo que significan, ¡mejor no cambiar nada !</translation>
+     </message>
++    <message>
++        <source>Also deletes excluded files from the destination. With --ignore-errors, deletion can continue after I/O errors.</source>
++        <translation>También borra del destino los archivos excluidos. Con --ignore-errors, el borrado puede continuar tras errores de entrada o salida.</translation>
++    </message>
+     <message>
+         <location line="+84"/>
+-        <source>Delete files on the destination that don&apos;t exist on the source
+-. &quot;Recurse into directories&quot; has to be selected 
+-(--delete-after &amp; --delete-excluded if &quot;Exclude&quot; is used)</source>
+-        <translation type="unfinished"></translation>
++        <source>Delete destination files that are missing from the source. With exclusions, also delete matching files already in the destination.
++Requires &quot;Recurse into directories&quot;.
++If you add --ignore-errors, rsync can still delete destination files after input/output errors.</source>
++        <translation>Borra del destino los archivos que ya no existen en el origen. Si hay exclusiones, también borra del destino los archivos que coinciden con ellas.
++Requiere «Descender recursivamente en los directorios».
++Si añades --ignore-errors, rsync puede seguir borrando archivos del destino después de errores de entrada o salida.</translation>
+     </message>
+     <message>
+         <location line="+152"/>
+         <source>Copy device (super user only)  &amp; special files as they are
+ (-D)</source>
+-        <translation>Copiar dispositivo (sólo superusuario) y archivos especiales como aparecen
+-(-D)</translation>
++        <translation>Copia archivos especiales y, con privilegios, archivos de dispositivo (-D).</translation>
+     </message>
+     <message>
+         <location line="+4"/>
+@@ -4174,14 +4183,12 @@ Si no sabe lo que significan, ¡mejor no cambiar nada !</translation>
+         <source>Files that are hard-linked together on the source will hard-link together on the destination
+ WARNING: All files have to be included in the transfer set !!
+ (-H)</source>
+-        <translation>Los archivos con hard links en el orgien tendrán hard links en el destino.
+-AVISO: ¡ Todos los archivos tienen que ser incluidos en el conjunto de la transferencia !
+-(-H)</translation>
++        <translation>Mantiene los enlaces duros entre archivos incluidos juntos en la misma copia (-H).</translation>
+     </message>
+     <message>
+         <location line="+5"/>
+         <source>Preserve hard links</source>
+-        <translation>Conservar hard links</translation>
++        <translation>Conservar enlaces duros</translation>
+     </message>
+     <message>
+         <location line="-207"/>
+@@ -4192,8 +4199,7 @@ AVISO: ¡ Todos los archivos tienen que ser incluidos en el conjunto de la trans
+         <location line="+54"/>
+         <source>Recurse into directories 
+ (-r)</source>
+-        <translation>Descender recursivamente en los directorios
+-(-r)</translation>
++        <translation>Incluye el contenido de las subcarpetas (-r).</translation>
+     </message>
+     <message>
+         <location line="+4"/>
+@@ -4204,8 +4210,7 @@ AVISO: ¡ Todos los archivos tienen que ser incluidos en el conjunto de la trans
+         <location line="+54"/>
+         <source>Do not backup source files that are newer on the destination 
+ (--update)</source>
+-        <translation>No hacer copia de seguridad de archivos del origen que son más recientes en el destino
+-(--update)</translation>
++        <translation>Omite los archivos cuya copia en destino tiene una fecha de modificación más reciente (--update).</translation>
+     </message>
+     <message>
+         <location line="+4"/>
+@@ -4216,8 +4221,7 @@ AVISO: ¡ Todos los archivos tienen que ser incluidos en el conjunto de la trans
+         <location line="-156"/>
+         <source>Preserve the owner (super user only), group &amp; time stamp of files
+ (-tgo)</source>
+-        <translation>Conservar el propietario (sólo superusuario), grupo y fecha de los archivos
+-(-tgo)</translation>
++        <translation>Conserva el grupo, la fecha de modificación y, con privilegios, el propietario (-tgo).</translation>
+     </message>
+     <message>
+         <location line="+4"/>
+@@ -4228,8 +4232,7 @@ AVISO: ¡ Todos los archivos tienen que ser incluidos en el conjunto de la trans
+         <location line="+61"/>
+         <source>Preserve permissions of files
+ (-p)</source>
+-        <translation>Conservar los permisos de los archivos
+-(-p)</translation>
++        <translation>Conserva los permisos básicos de lectura, escritura y ejecución (-p).</translation>
+     </message>
+     <message>
+         <location line="+4"/>
+@@ -4240,8 +4243,7 @@ AVISO: ¡ Todos los archivos tienen que ser incluidos en el conjunto de la trans
+         <location line="+54"/>
+         <source>Copy symlinks as symlinks
+ (-l)</source>
+-        <translation>Copiar enlaces simbólicos como enlaces simbólicos
+-(-l)</translation>
++        <translation>Copia los enlaces simbólicos como enlaces (-l).</translation>
+     </message>
+     <message>
+         <location line="+4"/>
+@@ -4252,8 +4254,7 @@ AVISO: ¡ Todos los archivos tienen que ser incluidos en el conjunto de la trans
+         <location line="+89"/>
+         <source>Ignore files using a similar algorithm to CVS 
+ (-C)</source>
+-        <translation>Ignorar archivos usando un algoritmo similar a CVS
+-(-C)</translation>
++        <translation>Excluye archivos mediante reglas similares a las de CVS (-C).</translation>
+     </message>
+     <message>
+         <location line="+4"/>
+@@ -4334,7 +4335,7 @@ AVISO: ¡ Todos los archivos tienen que ser incluidos en el conjunto de la trans
+ Normally used when &quot;Execute Before&quot; commands can fix a warning (eg mount partitions)
+ 
+ ATTENTION: check this if you really know what you&apos;re doing</source>
+-        <translation type="unfinished"></translation>
++        <translation>Ejecuta la tarea aunque haya una advertencia. Úsalo solo si una acción previa resuelve la causa, por ejemplo, montando el volumen.</translation>
+     </message>
+     <message>
+         <location line="+6"/>
+@@ -4590,7 +4591,7 @@ ATTENTION: check this if you really know what you&apos;re doing</source>
+     <message>
+         <location filename="../ui/modifyDialog.ui" line="-2060"/>
+         <source>Read exclude patterns from file</source>
+-        <translation>Leer los patrones excluidos del archivo</translation>
++        <translation>Lee los patrones de exclusión desde un archivo.</translation>
+     </message>
+     <message>
+         <location line="+3"/>
+@@ -4651,7 +4652,7 @@ Por favor, ir al manual para ampliar la información para incluir reglas.</trans
+     <message>
+         <location line="+219"/>
+         <source>Read include patterns from file</source>
+-        <translation>Leer patrones a incluir desde archivo</translation>
++        <translation>Lee los patrones de inclusión desde un archivo.</translation>
+     </message>
+     <message>
+         <location line="+344"/>
+@@ -4670,9 +4671,7 @@ Por favor, ir al manual para ampliar la información para incluir reglas.</trans
+         <source>Check this is you use a FAT/NTFS partition as destination.
+ Data ownership and permissions will NOT be preserved.
+ (-t --modify-window=1)</source>
+-        <translation>Verificar que se usa una partición FAT/NTFS como destino.
+-El propietario de los datos y los permisos  NO serán preservados.
+-(-t --modify-window=1)</translation>
++        <translation>Usa las opciones automáticas para destinos FAT o NTFS. Conserva la fecha de modificación con una tolerancia de un segundo y desactiva las casillas de propietario y permisos (-t --modify-window=1).</translation>
+     </message>
+     <message>
+         <location line="+5"/>
+@@ -4683,13 +4682,13 @@ El propietario de los datos y los permisos  NO serán preservados.
+         <location line="+81"/>
+         <source>Try to backup open files in windows systems using vss (Only works on windows 2003 and upper)
+ (--vss)</source>
+-        <translation type="unfinished"></translation>
++        <translation>Intenta copiar archivos abiertos en Windows mediante VSS, a partir de Windows Server 2003 (--vss).</translation>
+     </message>
+     <message>
+         <location line="+29"/>
+         <source>Restore backed-up windows permissions which are located in the NTFS Security Descriptor Stream 
+ (--restore-nt-streams)</source>
+-        <translation type="unfinished"></translation>
++        <translation>Restaura los permisos de Windows guardados en el flujo de descriptor de seguridad de NTFS (--restore-nt-streams).</translation>
+     </message>
+     <message>
+         <location line="+4"/>
+@@ -5611,13 +5610,13 @@ p, li { white-space: pre-wrap; }
+     </message>
+     <message>
+         <location line="-491"/>
+-        <source>Check this if your machine does not support a graphical environment (eg server)</source>
+-        <translation>Compruebe si su equipo no admite un entorno gráfico (por ejemplo un servidor)</translation>
++        <source>Use console mode for scheduled backups on Wayland or without a graphical session. This runs the backup in the background and writes the output to the scheduled log.</source>
++        <translation>Usa el modo consola para las copias programadas en Wayland o cuando no hay sesión gráfica. La copia se ejecuta en segundo plano y guarda la salida en el registro de la tarea programada.</translation>
+     </message>
+     <message>
+         <location line="+3"/>
+-        <source>Console Mode</source>
+-        <translation>Modo consola</translation>
++        <source>Console mode (recommended on Wayland)</source>
++        <translation>Modo consola (recomendado en Wayland)</translation>
+     </message>
+     <message>
+         <location line="+522"/>
+diff --git a/ui/modifyDialog.ui b/ui/modifyDialog.ui
+index 842274a..e01b249 100644
+--- a/ui/modifyDialog.ui
++++ b/ui/modifyDialog.ui
+@@ -2018,40 +2018,54 @@ If you have no idea what these mean, leave them untouched !!</string>
+                 </widget>
+                </item>
+                <item row="0" column="2">
+-                <widget class="QCheckBox" name="checkBox_deleteAfter">
+-                 <property name="sizePolicy">
+-                  <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+-                   <horstretch>0</horstretch>
+-                   <verstretch>0</verstretch>
+-                  </sizepolicy>
+-                 </property>
+-                 <property name="minimumSize">
+-                  <size>
+-                   <width>0</width>
+-                   <height>0</height>
+-                  </size>
+-                 </property>
+-                 <property name="font">
+-                  <font>
+-                   <weight>50</weight>
+-                   <bold>false</bold>
+-                  </font>
+-                 </property>
+-                 <property name="cursor">
+-                  <cursorShape>PointingHandCursor</cursorShape>
+-                 </property>
+-                 <property name="toolTip">
+-                  <string>Delete files on the destination that don't exist on the source
+-. &quot;Recurse into directories&quot; has to be selected 
+-(--delete-after &amp; --delete-excluded if &quot;Exclude&quot; is used)</string>
+-                 </property>
+-                 <property name="text">
+-                  <string>Delete files on the destination</string>
+-                 </property>
+-                 <property name="checked">
+-                  <bool>true</bool>
+-                 </property>
+-                </widget>
++                <layout class="QVBoxLayout" name="deleteAfterLayout">
++                 <item>
++                  <widget class="QCheckBox" name="checkBox_deleteAfter">
++                   <property name="sizePolicy">
++                    <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
++                     <horstretch>0</horstretch>
++                     <verstretch>0</verstretch>
++                    </sizepolicy>
++                   </property>
++                   <property name="minimumSize">
++                    <size>
++                     <width>0</width>
++                     <height>0</height>
++                    </size>
++                   </property>
++                   <property name="font">
++                    <font>
++                     <weight>50</weight>
++                     <bold>false</bold>
++                    </font>
++                   </property>
++                   <property name="cursor">
++                    <cursorShape>PointingHandCursor</cursorShape>
++                   </property>
++                   <property name="toolTip">
++                    <string>Delete destination files that are missing from the source. With exclusions, also delete matching files already in the destination.
++Requires &quot;Recurse into directories&quot;.
++If you add --ignore-errors, rsync can still delete destination files after input/output errors.</string>
++                   </property>
++                   <property name="text">
++                    <string>Delete files on the destination</string>
++                   </property>
++                   <property name="checked">
++                    <bool>true</bool>
++                   </property>
++                  </widget>
++                 </item>
++                 <item>
++                  <widget class="QLabel" name="label_deleteAfterExplanation">
++                   <property name="text">
++                    <string>Also deletes excluded files from the destination. With --ignore-errors, deletion can continue after I/O errors.</string>
++                   </property>
++                   <property name="wordWrap">
++                    <bool>true</bool>
++                   </property>
++                  </widget>
++                 </item>
++                </layout>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QCheckBox" name="checkBox_permissions">
+diff --git a/ui/scheduleDialog.ui b/ui/scheduleDialog.ui
+index 6544e4d..4987e38 100644
+--- a/ui/scheduleDialog.ui
++++ b/ui/scheduleDialog.ui
+@@ -240,10 +240,10 @@ p, li { white-space: pre-wrap; }
+            <cursorShape>PointingHandCursor</cursorShape>
+           </property>
+           <property name="toolTip">
+-           <string>Check this if your machine does not support a graphical environment (eg server)</string>
++           <string>Use console mode for scheduled backups on Wayland or without a graphical session. This runs the backup in the background and writes the output to the scheduled log.</string>
+           </property>
+           <property name="text">
+-           <string>Console Mode</string>
++           <string>Console mode (recommended on Wayland)</string>
+           </property>
+          </widget>
+         </item>
