@@ -1,0 +1,42 @@
+name: Build luckyBackup test packages
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  packages:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    env:
+      DEBFULLNAME: luckyBackup test build
+      DEBEMAIL: luckybackup-test@users.noreply.github.com
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Build Ubuntu packages
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          echo 'deb-src https://archive.ubuntu.com/ubuntu/ resolute universe' | sudo tee /etc/apt/sources.list.d/luckybackup-source.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y build-essential devscripts fakeroot
+          sudo apt-get build-dep -y luckybackup=0.5.0-7build3
+          apt-get source luckybackup=0.5.0-7build3
+          cd luckybackup-0.5.0
+          patch -p1 < "$GITHUB_WORKSPACE/luckybackup-ayuda-es.patch"
+          dch --newversion "0.5.0-7build3+help${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" --distribution resolute 'Translate and expose help for command options.'
+          dpkg-buildpackage -b -us -uc
+          mkdir -p "$RUNNER_TEMP/test-debs"
+          for package in luckybackup luckybackup-data; do
+            deb=( "$RUNNER_TEMP"/"${package}"_0.5.0-7build3+help*.deb )
+            test "${#deb[@]}" -eq 1
+            test "$(dpkg-deb --field "${deb[0]}" Package)" = "$package"
+            cp "${deb[0]}" "$RUNNER_TEMP/test-debs/"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: luckybackup-test-debs
+          path: ${{ runner.temp }}/test-debs/*.deb
+          if-no-files-found: error
+          retention-days: 1
