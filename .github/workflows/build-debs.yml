@@ -26,11 +26,11 @@ jobs:
           cd luckybackup-0.5.0
           patch -p1 < "$GITHUB_WORKSPACE/luckybackup-ayuda-es-wayland.patch"
           /usr/lib/qt5/bin/lrelease -nounfinished translations/luckybackup_es.ts -qm translations/luckybackup_es.qm
-          dch --newversion "0.5.0-7build3+help${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" --distribution resolute 'Translate and expose help for command options.'
+          dch --newversion "0.5.0-7+resolute1" --distribution resolute 'Translate and expose help for command options.'
           dpkg-buildpackage -b -us -uc
           mkdir -p "$RUNNER_TEMP/test-debs"
           for package in luckybackup luckybackup-data; do
-            deb=( "$RUNNER_TEMP"/"${package}"_0.5.0-7build3+help*.deb )
+            deb=( "$RUNNER_TEMP"/"${package}"_0.5.0-7+resolute1_*.deb )
             test "${#deb[@]}" -eq 1
             test "$(dpkg-deb --field "${deb[0]}" Package)" = "$package"
             if [ "$package" = luckybackup-data ]; then
@@ -43,4 +43,4 @@ jobs:
           name: luckybackup-test-debs
           path: ${{ runner.temp }}/test-debs/*.deb
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
