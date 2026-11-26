@@ -37,7 +37,7 @@ Si la ventana principal abre en una posición incómoda, puedes crear una regla 
 3. Cierra luckyBackup. En una terminal abierta en la carpeta que contiene únicamente los dos paquetes de prueba, ejecuta:
 
    ```bash
-   sudo apt install ./luckybackup_0.5.0-7+resolute1_amd64.deb ./luckybackup-data_0.5.0-7+resolute1_all.deb
+   sudo apt install ./luckybackup_0.5.0-7+resolute2_amd64.deb ./luckybackup-data_0.5.0-7+resolute2_all.deb
    ```
 
 4. Abre luckyBackup y comprueba **Plantillas** y **Planificación**. Puedes revisar los textos sin ejecutar una copia ni aplicar cambios a cron.
