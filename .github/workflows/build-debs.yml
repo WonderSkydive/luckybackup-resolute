@@ -20,11 +20,12 @@ jobs:
           set -euo pipefail
           echo 'deb-src https://archive.ubuntu.com/ubuntu/ resolute universe' | sudo tee /etc/apt/sources.list.d/luckybackup-source.list >/dev/null
           sudo apt-get update
-          sudo apt-get install -y build-essential devscripts fakeroot
+          sudo apt-get install -y build-essential devscripts fakeroot qttools5-dev-tools
           sudo apt-get build-dep -y luckybackup=0.5.0-7build3
           apt-get source luckybackup=0.5.0-7build3
           cd luckybackup-0.5.0
-          patch -p1 < "$GITHUB_WORKSPACE/luckybackup-ayuda-es.patch"
+          patch -p1 < "$GITHUB_WORKSPACE/luckybackup-ayuda-es-wayland.patch"
+          /usr/lib/qt5/bin/lrelease -nounfinished translations/luckybackup_es.ts -qm translations/luckybackup_es.qm
           dch --newversion "0.5.0-7build3+help${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" --distribution resolute 'Translate and expose help for command options.'
           dpkg-buildpackage -b -us -uc
           mkdir -p "$RUNNER_TEMP/test-debs"
@@ -32,6 +33,9 @@ jobs:
             deb=( "$RUNNER_TEMP"/"${package}"_0.5.0-7build3+help*.deb )
             test "${#deb[@]}" -eq 1
             test "$(dpkg-deb --field "${deb[0]}" Package)" = "$package"
+            if [ "$package" = luckybackup-data ]; then
+              dpkg-deb --fsys-tarfile "${deb[0]}" | tar -xOf - ./usr/share/luckybackup/translations/luckybackup_es.qm | cmp translations/luckybackup_es.qm -
+            fi
             cp "${deb[0]}" "$RUNNER_TEMP/test-debs/"
           done
       - uses: actions/upload-artifact@v4
