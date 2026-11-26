@@ -1,6 +1,6 @@
 # luckyBackup · Edición comunitaria
 
-**Español** · [English](README-luckybackup-resolute-en.md)
+**Español** · [English](README.md)
 
 Edición comunitaria de luckyBackup 0.5.0 que mejora la ayuda en español y explica cómo programar copias en Wayland. Los paquetes de esta publicación se preparan para **Kubuntu 26.04 LTS (Resolute), amd64**. La base de empaquetado es la versión 0.5.0-7build3 de Ubuntu.
 
@@ -12,11 +12,23 @@ El modo consola permite que cron ejecute la copia sin abrir una ventana ni depen
 
 Al actualizar el paquete, la programación existente sigue con la configuración guardada. Activa el modo consola en cada tarea que quieras ejecutar de esa manera.
 
+![Ventana de planificación con el modo consola recomendado en Wayland](wayland-scheduling-es.png)
+
+*Ventana de planificación en español.*
+
 ## Ayuda de las opciones de copia
 
 En **Propiedades de la tarea → Opciones del comando → Plantillas**, pasa el puntero por los botones **?** o púlsalos para leer la ayuda. Debajo de **Borrar los archivos en el destino** aparece un aviso visible sobre las exclusiones y `--ignore-errors`. Si se añade esa opción, rsync puede seguir borrando archivos del destino tras errores de entrada o salida. [Manual de rsync](https://rsync.samba.org/ftp/rsync/rsync.1.html)
 
 Esta versión conserva el motor de copia de luckyBackup. La selección gráfica de archivos y carpetas para una restauración parcial se abordará por separado.
+
+![Opciones del comando con botones de ayuda y aviso de borrado](command-options-es.png)
+
+*Opciones del comando en español.*
+
+## Colocación de la ventana en Plasma
+
+Si la ventana principal abre en una posición incómoda, puedes crear una regla de ventana de Plasma solo para luckyBackup y elegir **Recordar** en **Tamaño** y **Posición**. Comprobado en Plasma X11. En Wayland, la colocación depende de KWin y de la regla aplicada.
 
 ## Instalar la versión de prueba
 
@@ -25,7 +37,7 @@ Esta versión conserva el motor de copia de luckyBackup. La selección gráfica 
 3. Cierra luckyBackup. En una terminal abierta en la carpeta que contiene únicamente los dos paquetes de prueba, ejecuta:
 
    ```bash
-   sudo apt install ./luckybackup_*.deb ./luckybackup-data_*.deb
+   sudo apt install ./luckybackup_0.5.0-7+resolute1_amd64.deb ./luckybackup-data_0.5.0-7+resolute1_all.deb
    ```
 
 4. Abre luckyBackup y comprueba **Plantillas** y **Planificación**. Puedes revisar los textos sin ejecutar una copia ni aplicar cambios a cron.
