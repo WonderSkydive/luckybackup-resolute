@@ -37,7 +37,7 @@ If the main window opens in an inconvenient position, create a Plasma window rul
 3. Close luckyBackup. Open a terminal in the folder containing only the two test packages and run:
 
    ```bash
-   sudo apt install ./luckybackup_0.5.0-7+resolute2_amd64.deb ./luckybackup-data_0.5.0-7+resolute2_all.deb
+   sudo apt install ./luckybackup_0.5.0-7+resolute3_amd64.deb ./luckybackup-data_0.5.0-7+resolute3_all.deb
    ```
 
 4. Open luckyBackup and inspect **Templates** and **Schedule**. You can review the text without running a backup or applying schedule changes to cron.
