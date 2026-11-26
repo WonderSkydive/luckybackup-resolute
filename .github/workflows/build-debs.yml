@@ -24,13 +24,13 @@ jobs:
           sudo apt-get build-dep -y luckybackup=0.5.0-7build3
           apt-get source luckybackup=0.5.0-7build3
           cd luckybackup-0.5.0
-          patch -p1 < "$GITHUB_WORKSPACE/luckybackup-resolute2.patch"
+          patch -p1 < "$GITHUB_WORKSPACE/luckybackup-resolute3.patch"
           /usr/lib/qt5/bin/lrelease -nounfinished translations/luckybackup_es.ts -qm translations/luckybackup_es.qm
-          dch --newversion "0.5.0-7+resolute2" --distribution resolute 'Translate and expose help for command options.'
+          dch --newversion "0.5.0-7+resolute3" --distribution resolute 'Make community support easier to find.'
           dpkg-buildpackage -b -us -uc
           mkdir -p "$RUNNER_TEMP/test-debs"
           for package in luckybackup luckybackup-data; do
-            deb=( "$RUNNER_TEMP"/"${package}"_0.5.0-7+resolute2_*.deb )
+            deb=( "$RUNNER_TEMP"/"${package}"_0.5.0-7+resolute3_*.deb )
             test "${#deb[@]}" -eq 1
             test "$(dpkg-deb --field "${deb[0]}" Package)" = "$package"
             if [ "$package" = luckybackup-data ]; then
